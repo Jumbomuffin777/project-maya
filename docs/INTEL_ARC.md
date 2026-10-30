@@ -22,7 +22,8 @@ cmake -B build-sycl -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=icx -DCMAKE_CX
 cmake --build build-sycl -j 8 --target llama-server
 ```
 
-Maya-S v2 IQ2_XXS is 90 GB in three shards. On 88 GiB of VRAM the routed experts of six layers (about 11.4 GiB) stay
+Maya-S v2 IQ2_XXS is 90 GB in three shards. On 87.7 GiB of VRAM (32,656 + 32,656 + 24,480 MiB, as the SYCL backend
+reports the three cards) the routed experts of six layers (about 11.4 GiB) stay
 in host RAM and everything else goes to the GPUs:
 
 ```sh
@@ -42,14 +43,15 @@ compute runtime 26.35.39758.17, greedy, one stream, a 2,377-token prompt with 12
 | llama.cpp v0.8.0, stock (second run; the first after load: 30.9 / 11.6) | 68.3 | 13.6 |
 | llama.cpp v0.7.0 with a local grouped `MUL_MAT_ID` change for SYCL (not upstream), through a gateway | 108.9 | 14.0 |
 
-Decode is the same; the grouped expert matmul only speeds up prompt reading. Answers are coherent; the model reasons
+Decode is the same; the grouped expert matmul only speeds up prompt reading. These numbers are for Maya-S v2 IQ2_XXS
+only; larger GLM quants (Maya-M IQ2_S is 116 GB) keep more experts in host RAM and were not measured. Answers are coherent; the model reasons
 before it answers, so give it a budget above 128 tokens for real use.
 
 ## DeepSeek-V4.1-Flash-1017 Maya-XS (llama.cpp#30817 + loader patch)
 
 Maya's engine is CUDA and HIP; it has no Intel backend. This page shows how to run Maya's own
-**DeepSeek-V4.1-Flash-1017 Maya-XS** GGUFs on Intel Arc GPUs today, with llama.cpp's SYCL backend and the open
-llama.cpp pull request that adds the `deepseek41` architecture
+**DeepSeek-V4.1-Flash-1017 Maya-XS** GGUFs on Intel Arc GPUs today, with llama.cpp's SYCL backend and the llama.cpp
+pull request that first added the `deepseek41` architecture (closed unmerged on October 27; see the update above)
 ([ggml-org/llama.cpp#30817](https://github.com/ggml-org/llama.cpp/pull/30817)), plus one small loader patch so that
 llama.cpp reads Maya's file layout. Nothing in Maya's engine or installer changes.
 
@@ -93,7 +95,7 @@ failed with exit code 254`, lower `-fsycl-max-parallel-link-jobs` (6 worked with
 ### Run
 
 Maya-XS is 276.6 GB: 107 GiB of weights (98.9 GiB routed experts, IQ1_S) in shards 1-3 and the two Engram tables
-(150 GiB, Q6_K) in shards 4-5. With 88 GiB of VRAM across three cards, about a third of the expert layers stay in
+(150 GiB, Q6_K) in shards 4-5. With 87.7 GiB of VRAM across three cards, about a third of the expert layers stay in
 host RAM and the Engram tables are read from the SSD by row.
 
 ```sh
